@@ -5,83 +5,6 @@
 
 ---
 
-## 启动方式
-
-由于我是在wsl Ubuntu 24.04版本下运行的 因此我采用的都是在headless模式下的启动方式以及使用foxglove进行可视化
-
-```bash
-# 第一个终端
-ros2 launch nav2_bringup tb3_simulation_launch.py \
-    use_rviz:=False \
-    headless:=True
-```
-
-```bash
-# 第二个终端
-ros2 launch slam_toolbox online_async_launch.py use_sim_time:=true
-```
-
-
-```bash
-# 第三个终端
-ros2 launch foxglove_bridge foxglove_bridge_launch.xml use_sim_time:=true
-```
-
-```bash
-# 第四个终端
-cd ros2_ws
-source install/setup.zsh
-ros2 launch fuel_exploration exploration_nodes.launch.py min_goal_distance_m:=0.25 revisit_block_radius_m:=0.35 lookahead_distance:=0.25 max_angular_speed:=1.6
-```
-参数说明：
-**视点生成**
-- candidate_clearance_m
-    - 候选视点离障碍物至少要多远
-    - 越大越安全，但可选视点会变少
-- max_view_range_m
-    - 视点评分时，最多考虑多远的 frontier cell
-    - 相当于你的“传感器最大有效观察距离”
-**目标选择**
-- min_goal_distance_m
-    - 新目标距离机器人至少要有多远
-    - 防止刚到一个点，又选一个几乎贴着自己的点
-- revisit_block_radius_m
-    - 已访问过的视点周围多大范围内，禁止再次选为目标
-    - 用来避免两个相邻点来回横跳
-- goal_reached_tolerance_m
-    - 机器人离当前目标多近时，算“已经到达这个视点”
-    - 到达后会把这个点记进 visited
-**路径规划**
-- path_clearance_m
-    - A* 路径离障碍物至少保持多远
-    - 越大越保守，越不容易擦墙，但也可能更容易找不到路
-**路径跟踪**
-- lookahead_distance
-    - 跟踪路径时，控制器往前看多远的路径点
-    - 小：更贴路径，但容易抖
-    - 大：更平滑，但可能拐弯变钝
-- goal_tolerance
-    - 跟踪器离路径终点多近时，认为“路径完成”
-    - 这个是控制器层的到达判据，不是前面选目标层的
-**速度**
-- max_linear_speed
-    - 最大前进速度
-- max_angular_speed
-    - 最大转动角速度
-**调参经验**
-- 机器人来回抖：
-    - 先调大 lookahead_distance
-    - 调小 max_angular_speed
-- 老是贴墙：
-    - 调大 candidate_clearance_m
-    - 调大 path_clearance_m
-- 总在两个点之间犹豫：
-    - 调大 revisit_block_radius_m
-    - 调大 min_goal_distance_m
-- 探索不彻底（总有大片未知区域没去）：
-    - 调小 candidate_clearance_m（允许在更靠近障碍物的地方采样视点）
-    - 调小 path_clearance_m（让 A* 路径更贴近墙壁，覆盖更多区域）
-
 ## 一、FUEL 是什么
 
 FUEL 是一个用于未知环境自主探索的算法。它通过将前沿点聚合成簇，利用 TSP 全局排序后按最短路径依次遍历访问，并在探索过程中增量式更新簇及访问顺序，实现高效探索。
@@ -265,3 +188,85 @@ FUEL 由两大模块组成：
 技术栈：ROS2 + Nav2 + slam_toolbox
 - 第一、二层：自己实现（探索规划节点）
 - 第三层：Nav2 负责（NavigateToPose）
+
+## 启动方式
+由于我是在wsl Ubuntu 24.04版本下运行的 因此我采用的都是在headless模式下的启动方式以及使用foxglove进行可视化
+
+```bash
+# 第一个终端
+ros2 launch nav2_bringup tb3_simulation_launch.py \
+    use_rviz:=False \
+    headless:=True
+```
+
+```bash
+# 第二个终端
+ros2 launch slam_toolbox online_async_launch.py use_sim_time:=true
+```
+
+
+```bash
+# 第三个终端
+ros2 launch foxglove_bridge foxglove_bridge_launch.xml use_sim_time:=true
+```
+
+```bash
+# 第四个终端
+cd ros2_ws
+source install/setup.zsh
+ros2 launch fuel_exploration exploration_nodes.launch.py min_goal_distance_m:=0.25 revisit_block_radius_m:=0.35 lookahead_distance:=0.25 max_angular_speed:=1.6
+```
+参数说明：
+
+**视点生成**
+- candidate_clearance_m
+    - 候选视点离障碍物至少要多远
+    - 越大越安全，但可选视点会变少
+- max_view_range_m
+    - 视点评分时，最多考虑多远的 frontier cell
+    - 相当于你的“传感器最大有效观察距离”
+
+**目标选择**
+- min_goal_distance_m
+    - 新目标距离机器人至少要有多远
+    - 防止刚到一个点，又选一个几乎贴着自己的点
+- revisit_block_radius_m
+    - 已访问过的视点周围多大范围内，禁止再次选为目标
+    - 用来避免两个相邻点来回横跳
+- goal_reached_tolerance_m
+    - 机器人离当前目标多近时，算“已经到达这个视点”
+    - 到达后会把这个点记进 visited
+
+**路径规划**
+- path_clearance_m
+    - A* 路径离障碍物至少保持多远
+    - 越大越保守，越不容易擦墙，但也可能更容易找不到路
+
+**路径跟踪**
+- lookahead_distance
+    - 跟踪路径时，控制器往前看多远的路径点
+    - 小：更贴路径，但容易抖
+    - 大：更平滑，但可能拐弯变钝
+- goal_tolerance
+    - 跟踪器离路径终点多近时，认为“路径完成”
+    - 这个是控制器层的到达判据，不是前面选目标层的
+
+**速度**
+- max_linear_speed
+    - 最大前进速度
+- max_angular_speed
+    - 最大转动角速度
+    
+**调参经验**
+- 机器人来回抖：
+    - 先调大 lookahead_distance
+    - 调小 max_angular_speed
+- 老是贴墙：
+    - 调大 candidate_clearance_m
+    - 调大 path_clearance_m
+- 总在两个点之间犹豫：
+    - 调大 revisit_block_radius_m
+    - 调大 min_goal_distance_m
+- 探索不彻底（总有大片未知区域没去）：
+    - 调小 candidate_clearance_m（允许在更靠近障碍物的地方采样视点）
+    - 调小 path_clearance_m（让 A* 路径更贴近墙壁，覆盖更多区域）
