@@ -12,13 +12,21 @@ endif()
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
+find_package(geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(nav_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(tf2 REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(tf2_ros REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
 add_executable(frontier_detector src/frontier_detector.cpp)
-ament_target_dependencies(frontier_detector rclcpp nav_msgs visualization_msgs)                                                        
+ament_target_dependencies(frontier_detector geometry_msgs rclcpp nav_msgs std_msgs tf2 tf2_geometry_msgs tf2_ros visualization_msgs)
+add_executable(exploration_controller src/exploration_controller.cpp)
+ament_target_dependencies(exploration_controller geometry_msgs rclcpp nav_msgs tf2 tf2_geometry_msgs tf2_ros)
 install(TARGETS frontier_detector DESTINATION lib/${PROJECT_NAME})
+install(TARGETS exploration_controller DESTINATION lib/${PROJECT_NAME})
 install(DIRECTORY launch DESTINATION share/${PROJECT_NAME})
 
 if(BUILD_TESTING)
