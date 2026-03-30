@@ -1181,7 +1181,7 @@ void FrontierDetector::map_callback(
         const auto &rep = cluster.viewpoints[0];
         const auto cost = compute_path_cost(
             planning_pose->x, planning_pose->y, rep.x, rep.y, *msg,
-            occupied_threshold_, false, path_clearance_m_);
+            occupied_threshold_, block_unknown_in_path_, path_clearance_m_);
         if (cost.has_value()) {
           cost_matrix[0][i + 1] = *cost;
           cost_matrix[i + 1][0] = *cost;
@@ -1196,7 +1196,7 @@ void FrontierDetector::map_callback(
           const auto &repj = clusters[viable_cluster_indices[j]].viewpoints[0];
           const auto cost = compute_path_cost(
               repi.x, repi.y, repj.x, repj.y, *msg, occupied_threshold_,
-              false, path_clearance_m_);
+              block_unknown_in_path_, path_clearance_m_);
           if (cost.has_value()) {
             cost_matrix[i + 1][j + 1] = *cost;
             cost_matrix[j + 1][i + 1] = *cost;
@@ -1239,7 +1239,7 @@ void FrontierDetector::map_callback(
 
         const auto dijkstra_result = solve_viewpoint_dijkstra(
             planning_pose->x, planning_pose->y, layer_clusters, *msg,
-            occupied_threshold_, false, path_clearance_m_,
+            occupied_threshold_, block_unknown_in_path_, path_clearance_m_,
             visited_viewpoints_, revisit_block_radius_m_);
 
         if (dijkstra_result.has_value()) {
@@ -1252,7 +1252,7 @@ void FrontierDetector::map_callback(
 
           const auto path = plan_astar_path(
               *planning_pose, vp, *msg, occupied_threshold_,
-              false, path_clearance_m_);
+              block_unknown_in_path_, path_clearance_m_);
           if (path.has_value() && path->length_m >= min_goal_distance_m_) {
             const double utility =
                 static_cast<double>(vp.score) /
@@ -1281,7 +1281,7 @@ void FrontierDetector::map_callback(
 
               const auto path = plan_astar_path(
                   *planning_pose, vp, *msg, occupied_threshold_,
-                  false, path_clearance_m_);
+                  block_unknown_in_path_, path_clearance_m_);
               if (!path.has_value() ||
                   path->length_m < min_goal_distance_m_) {
                 continue;
