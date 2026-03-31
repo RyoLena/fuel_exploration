@@ -186,7 +186,7 @@ FUEL 由两大模块组成：
 | 轨迹 | B-spline (6-DOF) | Nav2 (DWB/MPPI/TEB) |
 | 计算量 | 高 | 显著降低 |
 
-技术栈：ROS2 + Nav2 + slam_toolbox
+技术栈：ROS2 jazzy  + Nav2 + slam_toolbox
 - 第一、二层：自己实现（探索规划节点）
 - 第三层：Nav2 负责（NavigateToPose）
 
