@@ -825,6 +825,8 @@ public:
         this->declare_parameter<std::string>("goal_topic", "/next_exploration_goal");
     path_topic_ =
         this->declare_parameter<std::string>("path_topic", "/next_exploration_path");
+    trajectory_topic_ = this->declare_parameter<std::string>(
+        "trajectory_topic", "/exploration_trajectory");
     goal_distance_weight_ =
         this->declare_parameter<double>("goal_distance_weight", 1.0);
     path_clearance_m_ =
@@ -841,6 +843,8 @@ public:
         this->declare_parameter<double>("goal_reached_tolerance_m", 0.25);
     revisit_block_radius_m_ =
         this->declare_parameter<double>("revisit_block_radius_m", 0.45);
+    trajectory_record_distance_m_ = std::max(
+        0.0, this->declare_parameter<double>("trajectory_record_distance_m", 0.05));
     tsp_lookahead_ =
         this->declare_parameter<int>("tsp_lookahead", 4);
 
@@ -855,6 +859,8 @@ public:
         goal_topic_, 10);
     path_pub_ =
         this->create_publisher<nav_msgs::msg::Path>(path_topic_, 10);
+    trajectory_pub_ =
+        this->create_publisher<nav_msgs::msg::Path>(trajectory_topic_, 10);
     status_pub_ = this->create_publisher<std_msgs::msg::String>(
         "/exploration_status", 10);
     marker_pub_ = this->create_publisher<visualization_msgs::msg::MarkerArray>(
@@ -872,11 +878,14 @@ private:
                       const std::string &detail = "");
   std::optional<RobotPose> robot_pose_in_frame(
       const std::string &target_frame) const;
+  void append_trajectory_pose(const std_msgs::msg::Header &header,
+                              const RobotPose &robot_pose);
 
   rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
   rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr odom_sub_;
   rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr goal_pub_;
   rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr path_pub_;
+  rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr trajectory_pub_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr status_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr
       marker_pub_;
@@ -899,6 +908,7 @@ private:
   std::string odom_topic_;
   std::string goal_topic_;
   std::string path_topic_;
+  std::string trajectory_topic_;
   double goal_distance_weight_{1.0};
   double path_clearance_m_{0.15};
   bool block_unknown_in_path_{true};
@@ -907,10 +917,12 @@ private:
   double viewpoint_rank_penalty_{0.05};
   double goal_reached_tolerance_m_{0.25};
   double revisit_block_radius_m_{0.45};
+  double trajectory_record_distance_m_{0.05};
   int tsp_lookahead_{4};
   std::optional<RobotPose> robot_pose_;
   std::optional<ViewpointCandidate> active_goal_;
   std::vector<VisitedViewpoint> visited_viewpoints_;
+  nav_msgs::msg::Path trajectory_path_;
   std::unique_ptr<tf2_ros::Buffer> tf_buffer_;
   std::shared_ptr<tf2_ros::TransformListener> tf_listener_;
   mutable bool warned_missing_pose_{false};
@@ -975,6 +987,44 @@ std::optional<RobotPose> FrontierDetector::robot_pose_in_frame(
       warned_transform_failure_ = true;
     }
     return std::nullopt;
+  }
+}
+
+void FrontierDetector::append_trajectory_pose(
+    const std_msgs::msg::Header &header, const RobotPose &robot_pose) {
+  if (!trajectory_path_.poses.empty() &&
+      trajectory_path_.header.frame_id != header.frame_id) {
+    RCLCPP_WARN(this->get_logger(),
+                "Trajectory frame changed from '%s' to '%s'; clearing accumulated "
+                "trajectory.",
+                trajectory_path_.header.frame_id.c_str(), header.frame_id.c_str());
+    trajectory_path_.poses.clear();
+  }
+
+  trajectory_path_.header = header;
+
+  geometry_msgs::msg::PoseStamped trajectory_pose;
+  trajectory_pose.header = header;
+  trajectory_pose.pose.position.x = robot_pose.x;
+  trajectory_pose.pose.position.y = robot_pose.y;
+  trajectory_pose.pose.position.z = 0.0;
+  trajectory_pose.pose.orientation = yaw_to_quaternion(robot_pose.yaw);
+
+  if (trajectory_path_.poses.empty()) {
+    trajectory_path_.poses.push_back(trajectory_pose);
+    return;
+  }
+
+  const auto &last_position = trajectory_path_.poses.back().pose.position;
+  const double distance_since_last_sample =
+      std::hypot(trajectory_pose.pose.position.x - last_position.x,
+                 trajectory_pose.pose.position.y - last_position.y);
+  if (distance_since_last_sample >= trajectory_record_distance_m_) {
+    trajectory_path_.poses.push_back(trajectory_pose);
+  } else {
+    trajectory_path_.poses.back().header = header;
+    trajectory_path_.poses.back().pose.orientation =
+        trajectory_pose.pose.orientation;
   }
 }
 
@@ -1130,6 +1180,11 @@ void FrontierDetector::map_callback(
   nav_msgs::msg::Path planned_path_msg;
   planned_path_msg.header = msg->header;
   const auto planning_pose = robot_pose_in_frame(msg->header.frame_id);
+  if (planning_pose.has_value()) {
+    append_trajectory_pose(msg->header, *planning_pose);
+  } else if (!trajectory_path_.poses.empty()) {
+    trajectory_path_.header.stamp = msg->header.stamp;
+  }
   std::string exploration_status = "idle";
   std::string status_detail = "clusters=" + std::to_string(clusters.size()) +
                               ", viewpoints=" +
@@ -1350,6 +1405,7 @@ void FrontierDetector::map_callback(
     exploration_status = "waiting_for_tf";
   }
   path_pub_->publish(planned_path_msg);
+  trajectory_pub_->publish(trajectory_path_);
 
   if (frontier_set_.empty()) {
     exploration_status = "finished";
@@ -1370,6 +1426,61 @@ void FrontierDetector::map_callback(
 
   visualization_msgs::msg::MarkerArray marker_array;
   marker_array.markers.push_back(make_delete_all_marker(msg->header));
+
+  if (!frontier_set_.empty()) {
+    visualization_msgs::msg::Marker frontier_cells_marker;
+    frontier_cells_marker.header = msg->header;
+    frontier_cells_marker.ns = "frontier_cells";
+    frontier_cells_marker.id = 0;
+    frontier_cells_marker.type = visualization_msgs::msg::Marker::POINTS;
+    frontier_cells_marker.action = visualization_msgs::msg::Marker::ADD;
+    frontier_cells_marker.pose.orientation.w = 1.0;
+    frontier_cells_marker.scale.x = std::max(0.03, msg->info.resolution * 0.75);
+    frontier_cells_marker.scale.y = std::max(0.03, msg->info.resolution * 0.75);
+    frontier_cells_marker.color.r = 1.0F;
+    frontier_cells_marker.color.g = 0.45F;
+    frontier_cells_marker.color.b = 0.15F;
+    frontier_cells_marker.color.a = 0.85F;
+
+    for (const int idx : frontier_set_) {
+      const int frontier_row = idx / width;
+      const int frontier_col = idx % width;
+      const auto world_point = grid_to_world(frontier_row, frontier_col, *msg);
+
+      geometry_msgs::msg::Point point;
+      point.x = world_point.first;
+      point.y = world_point.second;
+      point.z = 0.04;
+      frontier_cells_marker.points.push_back(point);
+    }
+
+    marker_array.markers.push_back(frontier_cells_marker);
+  }
+
+  if (!trajectory_path_.poses.empty()) {
+    visualization_msgs::msg::Marker trajectory_marker;
+    trajectory_marker.header = trajectory_path_.header;
+    trajectory_marker.ns = "exploration_trajectory";
+    trajectory_marker.id = 0;
+    trajectory_marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+    trajectory_marker.action = visualization_msgs::msg::Marker::ADD;
+    trajectory_marker.pose.orientation.w = 1.0;
+    trajectory_marker.scale.x = 0.08;
+    trajectory_marker.color.r = 0.1F;
+    trajectory_marker.color.g = 0.95F;
+    trajectory_marker.color.b = 0.95F;
+    trajectory_marker.color.a = 0.95F;
+
+    for (const auto &pose : trajectory_path_.poses) {
+      geometry_msgs::msg::Point point;
+      point.x = pose.pose.position.x;
+      point.y = pose.pose.position.y;
+      point.z = 0.08;
+      trajectory_marker.points.push_back(point);
+    }
+
+    marker_array.markers.push_back(trajectory_marker);
+  }
 
   const int viewpoint_id_stride = std::max(1, max_viewpoints_);
   for (std::size_t cluster_idx = 0; cluster_idx < clusters.size(); ++cluster_idx) {

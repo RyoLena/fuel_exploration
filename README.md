@@ -4,7 +4,8 @@
 > 发表于 IEEE Robotics and Automation Letters, 2021
 
 ---
-
+效果展示：
+[fuel](glove.gif)![alt text](glove.gif)
 ## 一、FUEL 是什么
 
 FUEL 是一个用于未知环境自主探索的算法。它通过将前沿点聚合成簇，利用 TSP 全局排序后按最短路径依次遍历访问，并在探索过程中增量式更新簇及访问顺序，实现高效探索。

@@ -70,6 +70,7 @@ def generate_launch_description():
             'use_sim_time': True,
             'candidate_clearance_m': 0.10,
             'max_view_range_m': 3.5,
+            'min_cluster_size': 10,
             'min_goal_distance_m': 0.25,
             'revisit_block_radius_m': 0.35,
             'goal_reached_tolerance_m': 0.25,

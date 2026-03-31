@@ -8,6 +8,7 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
     candidate_clearance_m = LaunchConfiguration('candidate_clearance_m')
     max_view_range_m = LaunchConfiguration('max_view_range_m')
+    min_cluster_size = LaunchConfiguration('min_cluster_size')
     min_goal_distance_m = LaunchConfiguration('min_goal_distance_m')
     revisit_block_radius_m = LaunchConfiguration('revisit_block_radius_m')
     goal_reached_tolerance_m = LaunchConfiguration('goal_reached_tolerance_m')
@@ -21,6 +22,7 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         DeclareLaunchArgument('candidate_clearance_m', default_value='0.10'),
         DeclareLaunchArgument('max_view_range_m', default_value='3.5'),
+        DeclareLaunchArgument('min_cluster_size', default_value='10'),
         DeclareLaunchArgument('min_goal_distance_m', default_value='0.35'),
         DeclareLaunchArgument('revisit_block_radius_m', default_value='0.45'),
         DeclareLaunchArgument('goal_reached_tolerance_m', default_value='0.25'),
@@ -38,6 +40,7 @@ def generate_launch_description():
                 'use_sim_time': use_sim_time,
                 'candidate_clearance_m': candidate_clearance_m,
                 'max_view_range_m': max_view_range_m,
+                'min_cluster_size': min_cluster_size,
                 'min_goal_distance_m': min_goal_distance_m,
                 'revisit_block_radius_m': revisit_block_radius_m,
                 'goal_reached_tolerance_m': goal_reached_tolerance_m,
