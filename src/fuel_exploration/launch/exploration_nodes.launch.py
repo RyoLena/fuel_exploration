@@ -6,11 +6,6 @@ from launch_ros.actions import Node
 
 def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time')
-    odom_topic = LaunchConfiguration('odom_topic')
-    goal_topic = LaunchConfiguration('goal_topic')
-    path_topic = LaunchConfiguration('path_topic')
-    trajectory_topic = LaunchConfiguration('trajectory_topic')
-    cmd_vel_topic = LaunchConfiguration('cmd_vel_topic')
     candidate_clearance_m = LaunchConfiguration('candidate_clearance_m')
     max_view_range_m = LaunchConfiguration('max_view_range_m')
     min_cluster_size = LaunchConfiguration('min_cluster_size')
@@ -25,12 +20,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='true'),
-        DeclareLaunchArgument('odom_topic', default_value='/odometry/filtered'),
-        DeclareLaunchArgument('goal_topic', default_value='/next_exploration_goal'),
-        DeclareLaunchArgument('path_topic', default_value='/next_exploration_path'),
-        DeclareLaunchArgument(
-            'trajectory_topic', default_value='/exploration_trajectory'),
-        DeclareLaunchArgument('cmd_vel_topic', default_value='/cmd_vel'),
         DeclareLaunchArgument('candidate_clearance_m', default_value='0.10'),
         DeclareLaunchArgument('max_view_range_m', default_value='3.5'),
         DeclareLaunchArgument('min_cluster_size', default_value='10'),
@@ -49,10 +38,6 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'use_sim_time': use_sim_time,
-                'odom_topic': odom_topic,
-                'goal_topic': goal_topic,
-                'path_topic': path_topic,
-                'trajectory_topic': trajectory_topic,
                 'candidate_clearance_m': candidate_clearance_m,
                 'max_view_range_m': max_view_range_m,
                 'min_cluster_size': min_cluster_size,
@@ -69,9 +54,6 @@ def generate_launch_description():
             output='screen',
             parameters=[{
                 'use_sim_time': use_sim_time,
-                'odom_topic': odom_topic,
-                'path_topic': path_topic,
-                'cmd_vel_topic': cmd_vel_topic,
                 'lookahead_distance': lookahead_distance,
                 'goal_tolerance': goal_tolerance,
                 'max_linear_speed': max_linear_speed,
