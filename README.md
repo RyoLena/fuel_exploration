@@ -217,6 +217,13 @@ cd ros2_ws
 source install/setup.zsh
 ros2 launch fuel_exploration exploration_nodes.launch.py min_goal_distance_m:=0.25 revisit_block_radius_m:=0.35 lookahead_distance:=0.25 max_angular_speed:=1.6
 ```
+
+**探索完成**
+```bash
+ros2 run nav2_map_server map_saver_cli -f ~/maps/exploration_result
+```
+会生成 .pgm（图片）+ .yaml（元数据）两个文件。
+
 参数说明：
 
 **视点生成**
